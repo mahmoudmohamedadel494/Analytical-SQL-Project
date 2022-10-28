@@ -1,0 +1,119 @@
+-- اكتر دوله حصل فيها مبيعات باجمالي السعر
+select country , sum (quantity * unitprice) as total_price  
+from online_retail 
+group by country 
+order by total_price desc; 
+
+-- اكتر دوله حصل فيها مبيعات بالكميه 
+select country , sum (quantity ) as quantities 
+from online_retail 
+group by country
+order by quantities desc; 
+
+--------------------------------------------------------------------------------------
+-- اكتر سلعه بتتباع
+select distinct(stockcode) , description from online_retail
+where stockcode in (select stockcode from (select stockcode   , sum(quantity) as quantities
+from online_retail
+group by   stockcode    
+order by quantities desc
+limit 5)as na );
+
+
+-- analytical query
+select * , 
+sum(quantity) over (partition by country , stockcode order by country ) as quantities
+from online_retail 
+order by quantities desc
+
+
+-- اكتر سلعه بيحصلها استرجاع
+select distinct(stockcode) , description from online_retail
+where stockcode in (select stockcode from (select stockcode   , sum(quantity) as quantities
+from online_retail
+group by   stockcode    
+order by quantities 
+limit 5)as na
+
+-- analytical query 
+select * , 
+sum(quantity) over (partition by country , stockcode order by country ) as quantities
+from online_retail 
+order by quantities 
+
+--------------------------------------------------------------------------------------
+---- اعلي سلعه بتتباع واقل سلعه بتتباع ف كل بلد 
+
+select distinct Country, 
+first_value(Description) over (partition by Country order by  total_sales 
+                              rows between unbounded preceding and unbounded following) as best_sale,
+last_value(Description) over (partition by Country order by total_sales
+                                rows between unbounded preceding and unbounded following) as lowes_sale
+from (select Country, Description,
+	  sum(Quantity*UnitPrice) as total_sales
+from Online_Retail
+    group by Country, Description ) as sub_query
+order by Country
+
+-----------------------------------------------------------------------------
+
+-- total price per months
+
+select Month_Name,sum(quantity*unitprice) as totalprice_month from 
+(
+select *  , TO_CHAR(  to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI')  ,  'Month'  ) as Month_Name
+from online_retail
+) nn
+group by Month_Name
+order by totalprice_month desc ; 
+
+-- total number of transactions per month
+
+select Month_Name,count(distinct(invoiceno)) as transactions_month from 
+(
+select *  , TO_CHAR(  to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI')  ,  'Month'  ) as Month_Name
+from online_retail
+) nn
+group by Month_Name
+order by totalprice_month desc
+--------------------------------------------------------------------------------------------
+-- دي كل بلد عدد انواع العملاء فيها 
+
+select country , 
+    count (case when group_name = 'Champions' then c.customerid end ) as Champions ,
+    count (case when group_name = 'Potential Loyalists' then c.customerid end ) as Potential_Loyalists  ,
+    count (case when group_name = 'Loyal Customers' then c.customerid end ) as Loyal_Customers  ,
+    count (case when group_name = 'Recent Customers' then c.customerid end ) as Recent_Customers  ,
+    count (case when group_name = 'Promising' then c.customerid end ) as Promising  ,
+    count (case when group_name = 'Customers Needing Attention' then c.customerid end ) as Customers_Needing_Attention ,
+    count (case when group_name = 'At Risk' then c.customerid end ) as At_Risk  ,
+    count (case when group_name = 'Cant Lose Them' then c.customerid end ) as Cant_Lose_Them  ,
+    count (case when group_name = 'Hibernating' then c.customerid end ) as Hibernating  ,
+    count (case when group_name = 'Lost' then c.customerid end ) as Lost   
+from online_retail r , customer_type c 
+where r.customerid = c.customerid
+group  by country
+order by Champions desc; 
+
+
+
+
+
+select country , 
+    count (case when group_name = 'Champions' then c.customerid end ) +
+    count (case when group_name = 'Potential Loyalists' then c.customerid end ) +
+    count (case when group_name = 'Loyal Customers' then c.customerid end ) as Loyal_Customers  ,
+    count (case when group_name = 'Recent Customers' then c.customerid end ) +
+    count (case when group_name = 'Promising' then c.customerid end ) as Promising  ,
+    count (case when group_name = 'Customers Needing Attention' then c.customerid end ) +
+    count (case when group_name = 'At Risk' then c.customerid end )+
+    count (case when group_name = 'Cant Lose Them' then c.customerid end ) +
+    count (case when group_name = 'Hibernating' then c.customerid end )+
+    count (case when group_name = 'Lost' then c.customerid end ) as At_Risk   
+from online_retail r , customer_type c 
+where r.customerid = c.customerid
+group  by country
+order by Loyal_Customers desc; 
+ 
+
+

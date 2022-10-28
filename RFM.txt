@@ -1,0 +1,151 @@
+select * from online_retail ; 
+
+
+-- referance date 
+select max(invoicedate) from online_retail ; 
+
+select customerid , invoicedate  , invoiceno from online_retail ; 
+
+TO_CHAR(  to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI') 
+select max(TO_CHAR(  to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI') )) from online_retail ; 
+
+
+
+
+select max(to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI') ) - (select max(to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI') )   from online_retail 
+        where customerid is  not null
+group by    customerid  ) from online_retail ; 
+        
+select max(invoicedate)   from online_retail 
+        where customerid is  not null
+group by    customerid ; 
+
+
+
+
+select * , ntile (5) over (order by diff desc) as Recency
+from (
+select customerid , max_date,
+(select max(to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI') ) from online_retail  ) - to_timestamp(max_date , 'MM/DD/YYYY HH24:MI')  as diff
+from (
+select customerid ,  invoicedate 
+, max(invoicedate) over (partition by customerid order by invoicedate
+                         rows between unbounded preceding and unbounded following) as max_date
+from online_retail
+ )nn
+group by customerid , max_date
+order by diff ) asss
+;
+
+
+
+----------------------------------------------------------------------------------------------------------------
+create table customer_type
+AS
+select * , ntile (5) over (order by Recency desc) as r_score ,
+( (ntile (5) over (order by frequency desc) )+(ntile (5) over (order by Monetary desc)) ) / 2 as fm_score
+from
+(
+select customerid , (select max(to_timestamp(invoicedate , 'MM/DD/YYYY HH24:MI') ) from online_retail  ) -
+                    (to_timestamp(max(invoicedate) , 'MM/DD/YYYY HH24:MI')) as Recency , 
+count(invoiceno) as frequency , sum (quantity * unitprice) as Monetary
+from online_retail
+where customerid is not null 
+group by customerid  
+) new_table ; 
+
+
+alter table customer_type 
+add column Group_name varchar(100) ; 
+
+drop table customer_type;
+--------------------------
+update customer_type 
+set group_name = 
+case when (r_score = 5 and fm_score in (5,4)) or (r_score = 4 and fm_score = 5) then 'Champions'
+     when (r_score in (5,4) and fm_score = 2) or (r_score in (3,4) and fm_score = 3) then 'Potential Loyalists '
+     when (r_score = 5 and fm_score = 3) or (r_score = 4 and fm_score = 4) or
+          (r_score = 3 and fm_score = 5) or (r_score = 3 and fm_score = 4) then 'Loyal Customers '
+     when (r_score = 5 and fm_score = 1) then 'Recent Customers '
+     when (r_score in (4,3) and fm_score = 1)  then 'Promising'
+     when (r_score = 3 and fm_score = 2) or (r_score = 2 and fm_score in (3,2)) then 'Customers Needing Attention'
+     when (r_score = 2 and fm_score in (5,4)) or (r_score = 1 and fm_score = 3) then 'At Risk' 
+     when (r_score = 1 and fm_score in (5,4)) then 'Cant Lose Them'
+     when (r_score = 1 and fm_score = 2) or (r_score = 2 and fm_score = 1) then 'Hibernating'
+     when (r_score = 1 and fm_score = 1) then 'Lost'
+
+end ; 
+
+
+
+select * from customer_type  
+where group_name is null ; 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
